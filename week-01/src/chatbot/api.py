@@ -17,6 +17,7 @@ from openai import OpenAI
 from typing import List
 
 from src.settings import settings
+from src.settings import Settings  # I Added this
 from src.chatbot.constants import SYSTEM_PROMPT
 from src.chatbot.models import ChatMessage
 
@@ -39,6 +40,10 @@ from src.chatbot.models import ChatMessage
 #
 # Your code here:
 # def create_client() -> ...:
+def create_client(settings: Settings) -> OpenAI:
+    """Create and return an OpenAI client using the provided settings."""
+    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    return client
 
 
 # TODO: Implement get_chat_response function
@@ -70,13 +75,13 @@ from src.chatbot.models import ChatMessage
 #     try:
 #         # Convert messages to dicts
 #         message_dicts = [msg.model_dump() for msg in messages]
-#         
+#
 #         # Call OpenAI API
 #         response = client.chat.completions.create(...)
-#         
+#
 #         # Extract the assistant's message
 #         assistant_message = response.choices[0].message
-#         
+#
 #         # Create and return ChatMessage
 #         return ChatMessage(
 #             role=assistant_message.role,
@@ -89,6 +94,28 @@ from src.chatbot.models import ChatMessage
 #         raise
 #
 # Your code here:
+def get_chat_response(
+    client: OpenAI, messages: List[ChatMessage], model: str
+) -> ChatMessage:
+    """Send messages to OpenAI and return the assistant's response as a ChatMessage."""
+    try:
+        # Convert messages to dicts
+        message_dicts = [msg.model_dump() for msg in messages]
+
+        # Call OpenAI API
+        response = client.chat.completions.create(model=model, messages=message_dicts)
+
+        # Extract the assistant's message
+        assistant_message = response.choices[0].message
+
+        # Create and return ChatMessage
+        return ChatMessage(
+            role=assistant_message.role, content=assistant_message.content
+        )
+    except Exception as e:
+        # Handle errors gracefully
+        print(f"Error during OpenAI API call: {e}")
+        raise
 
 
 # TODO: Implement create_system_message function (Helper Function)
@@ -105,4 +132,6 @@ from src.chatbot.models import ChatMessage
 #   system_msg = create_system_message()
 #
 # Your code here:
-
+def create_system_message() -> ChatMessage:
+    """Create and return the system message that defines the chatbot's personality."""
+    return ChatMessage(role="system", content=SYSTEM_PROMPT)

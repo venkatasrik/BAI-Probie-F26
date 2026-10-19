@@ -34,5 +34,5 @@ from typing import Literal
 # We use Literal to restrict role to exactly: "user", "assistant", or "system"
 #
 class ChatMessage(BaseModel):
-    change_this_variables: str
-
+    role: Literal["user", "assistant", "system"]
+    content: str

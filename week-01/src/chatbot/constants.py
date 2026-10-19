@@ -40,4 +40,3 @@ Your role is to:
 - Admit when you don't know something rather than making things up
 
 Keep your responses concise but informative."""
-
