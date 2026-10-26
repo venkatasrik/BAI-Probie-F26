@@ -248,3 +248,187 @@ def calculate_price_volatility(prices: list[float]) -> str:
     else:
         return "high"
 
+def calculate_rsi(prices: list[float], period: int = 14) -> float | None:
+    """
+    Calculate the Relative Strength Index (RSI) using Wilder's smoothing.
+
+    RSI measures momentum on a 0-100 scale by comparing the size of recent
+    gains to the size of recent losses:
+    - Above 70: often considered overbought
+    - Below 30: often considered oversold
+
+    Args:
+        prices: List of prices (oldest to newest)
+        period: Lookback window, 14 by default
+
+    Returns:
+        RSI between 0 and 100, or None if there isn't enough data
+    """
+    if len(prices) < period + 1:
+        return None
+
+    # Day-over-day changes, split into gains and losses
+    changes = [prices[i] - prices[i - 1] for i in range(1, len(prices))]
+    gains = [max(change, 0) for change in changes]
+    losses = [max(-change, 0) for change in changes]
+
+    # Start with a simple average of the first `period` changes
+    avg_gain = sum(gains[:period]) / period
+    avg_loss = sum(losses[:period]) / period
+
+    # Then smooth through the remaining days
+    for gain, loss in zip(gains[period:], losses[period:]):
+        avg_gain = (avg_gain * (period - 1) + gain) / period
+        avg_loss = (avg_loss * (period - 1) + loss) / period
+
+    if avg_loss == 0:
+        return 100.0
+
+    rs = avg_gain / avg_loss
+    return round(100 - (100 / (1 + rs)), 2)
+
+def fetch_stock_news(symbol: str, limit: int = 5) -> list[dict[str, str]]:
+    """
+    Fetch recent news articles for a stock from Yahoo Finance.
+
+    yfinance has changed its news format between versions, so this handles
+    both the older flat format and the newer nested "content" format.
+
+    Args:
+        symbol: Stock ticker symbol (e.g., "AAPL")
+        limit: Maximum number of articles to return
+
+    Returns:
+        List of dicts with 'title', 'publisher', and 'summary' keys.
+        Empty list if no news is available.
+    """
+    try:
+        raw_news = yf.Ticker(symbol.upper()).news or []
+    except Exception:
+        return []
+
+    articles = []
+    for item in raw_news[:limit]:
+        content = item.get("content", item)
+        title = content.get("title")
+        if not title:
+            continue
+
+        provider = content.get("provider")
+        if isinstance(provider, dict):
+            publisher = provider.get("displayName")
+        else:
+            publisher = content.get("publisher")
+
+        articles.append({
+            "title": title,
+            "publisher": publisher or "Unknown",
+            "summary": content.get("summary") or "",
+        })
+
+    return articles
+
+
+def calculate_ema_series(prices: list[float], window: int) -> list[float]:
+    """
+    Calculate an Exponential Moving Average (EMA) for every point it can.
+
+    An EMA is like a moving average that weights recent prices more heavily.
+    The result is shorter than the input: the first value lines up with
+    prices[window - 1].
+
+    Args:
+        prices: List of prices (oldest to newest)
+        window: EMA length (e.g., 12 or 26)
+
+    Returns:
+        List of EMA values, or an empty list if there isn't enough data
+    """
+    if len(prices) < window:
+        return []
+
+    multiplier = 2 / (window + 1)
+    ema_values = [sum(prices[:window]) / window]  # seed with a simple average
+    for price in prices[window:]:
+        ema_values.append(price * multiplier + ema_values[-1] * (1 - multiplier))
+    return ema_values
+
+
+def calculate_macd(
+    prices: list[float], fast: int = 12, slow: int = 26, signal: int = 9
+) -> dict[str, float] | None:
+    """
+    Calculate MACD (Moving Average Convergence Divergence).
+
+    - MACD line: fast EMA minus slow EMA (momentum)
+    - Signal line: EMA of the MACD line
+    - Histogram: MACD minus signal. Positive = bullish momentum,
+      negative = bearish momentum.
+
+    Needs at least slow + signal - 1 prices (34 with the defaults).
+
+    Returns:
+        Dict with 'macd', 'signal', 'histogram', or None if not enough data
+    """
+    fast_ema = calculate_ema_series(prices, fast)
+    slow_ema = calculate_ema_series(prices, slow)
+    if not slow_ema:
+        return None
+
+    # Line the two EMA series up so they cover the same days
+    offset = slow - fast
+    macd_line = [f - s for f, s in zip(fast_ema[offset:], slow_ema)]
+
+    signal_series = calculate_ema_series(macd_line, signal)
+    if not signal_series:
+        return None
+
+    macd_value = macd_line[-1]
+    signal_value = signal_series[-1]
+    return {
+        "macd": round(macd_value, 2),
+        "signal": round(signal_value, 2),
+        "histogram": round(macd_value - signal_value, 2),
+    }
+
+
+def calculate_bollinger_bands(
+    prices: list[float], window: int = 20, num_std: float = 2.0
+) -> dict[str, float | str] | None:
+    """
+    Calculate Bollinger Bands.
+
+    The middle band is the 20-day moving average. The upper and lower bands
+    sit 2 standard deviations away. Price near the upper band can mean
+    stretched high; near the lower band, stretched low. Wide bands mean
+    high volatility.
+
+    Returns:
+        Dict with 'upper', 'middle', 'lower', and 'position' (where the latest
+        price sits relative to the bands), or None if not enough data
+    """
+    import statistics
+
+    if len(prices) < window:
+        return None
+
+    recent = prices[-window:]
+    middle = sum(recent) / window
+    std_dev = statistics.pstdev(recent)
+    upper = middle + num_std * std_dev
+    lower = middle - num_std * std_dev
+
+    latest = prices[-1]
+    if latest > upper:
+        position = "above upper band"
+    elif latest < lower:
+        position = "below lower band"
+    else:
+        position = "within bands"
+
+    return {
+        "upper": round(upper, 2),
+        "middle": round(middle, 2),
+        "lower": round(lower, 2),
+        "position": position,
+    }

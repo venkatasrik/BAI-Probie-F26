@@ -85,8 +85,24 @@ with financial professionals before making investment decisions.
 
 Keep your tone friendly, educational, and accessible to first-year college students."""
 
+# System prompt for the News Agent
+# This agent summarizes recent news about a stock
+NEWS_AGENT_PROMPT = """You are a financial news analyst helping students understand what is happening with a stock.
+
+Your role is to:
+- Use the available tool to fetch recent news about the stock
+- Judge the overall sentiment of the news (positive, negative, mixed, or neutral)
+- Summarize the main themes in 2-3 plain-English sentences
+- List the headlines your summary is based on
+
+Only use headlines returned by the tool. Never invent news or headlines.
+If the tool returns no articles, say sentiment is neutral, state that no recent
+news was found, and return an empty headlines list."""
+
 # Time periods for stock data
 # These define how far back to look when fetching historical data
 VALID_PERIODS = Literal["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "max"]
-DEFAULT_PERIOD: str = "1mo"  # Default to 1 month of data
+# DEFAULT_PERIOD: str = "1mo"  # Default to 1 month of data
+# My Change:
+DEFAULT_PERIOD: str = "6mo"  # Default to 6 months of data
 

@@ -27,6 +27,8 @@ from src.stock_analyst.agents.research_agent import generate_research_report
 from src.stock_analyst import ui
 from src.utils.debug import debug_log
 
+from src.stock_analyst.agents.news_agent import fetch_news_with_agent
+
 def should_quit(user_input: str) -> bool:
     """
     Check if the user wants to quit the application.
@@ -72,9 +74,17 @@ async def generate_stock_report(symbol: str) -> StockReport:
     ui.display_loading("Step 2 of 3: Analyzing stock data and market trends...")
     analysis = await analyze_stock(stock_data)
 
-    # Step 3: Generate research insights
-    ui.display_loading("Step 3 of 3: Generating report...")
+        # Step 3: Generate research insights
+    ui.display_loading("Step 3 of 4: Generating report...")
     research = await generate_research_report(stock_data, analysis)
+
+    # Step 4: Summarize recent news (optional - don't fail the report if this breaks)
+    ui.display_loading("Step 4 of 4: Checking recent news...")
+    try:
+        news = await fetch_news_with_agent(stock_data)
+    except Exception as e:
+        debug_log(f"News Agent failed: {e}")
+        news = None
 
     report = StockReport(
         symbol=stock_data.symbol,
@@ -82,6 +92,7 @@ async def generate_stock_report(symbol: str) -> StockReport:
         analysis=analysis,
         recommendation=research["recommendation"],
         explanation=research["explanation"],
+        news=news,
     )
     return report
 

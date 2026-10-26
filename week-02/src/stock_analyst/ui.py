@@ -218,6 +218,17 @@ def display_technical_analysis(report: StockReport) -> None:
     if analysis.moving_average_50:
         analysis_text += f"\n• 50-Day MA: ${analysis.moving_average_50:.2f}"
     
+    if analysis.rsi is not None:
+        analysis_text += f"\n• RSI (14): {analysis.rsi:.1f}"
+
+    if analysis.macd is not None and analysis.macd_signal is not None:
+        analysis_text += f"\n• MACD: {analysis.macd:.2f} (signal: {analysis.macd_signal:.2f})"
+
+    if analysis.bollinger_upper is not None and analysis.bollinger_lower is not None:
+        analysis_text += (
+            f"\n• Bollinger Bands: ${analysis.bollinger_lower:.2f} - ${analysis.bollinger_upper:.2f}"
+        )
+    
     if analysis.support_level:
         analysis_text += f"\n• Support Level: ${analysis.support_level:.2f}"
     
@@ -285,6 +296,41 @@ def display_educational_notes(report: StockReport) -> None:
     
     console.print(panel)
 
+def display_news(report: StockReport) -> None:
+    """
+    Display the news summary, if available.
+
+    Args:
+        report: StockReport with optional news data
+    """
+    if not report.news:
+        return
+
+    sentiment_colors = {
+        "positive": "green",
+        "negative": "red",
+        "mixed": "yellow",
+        "neutral": "white",
+    }
+    color = sentiment_colors.get(report.news.sentiment, "white")
+
+    news_text = f"[bold]Sentiment:[/bold] [{color}]{report.news.sentiment.upper()}[/{color}]"
+    news_text += f"\n\n{report.news.summary}"
+
+    if report.news.headlines:
+        news_text += "\n\n[bold]Recent Headlines:[/bold]"
+        for headline in report.news.headlines:
+            news_text += f"\n• {headline}"
+
+    panel = Panel(
+        news_text,
+        title="📰 Recent News",
+        border_style="magenta",
+        box=box.ROUNDED,
+        padding=(1, 2),
+    )
+
+    console.print(panel)
 
 def display_stock_report(report: StockReport) -> None:
     """
@@ -310,6 +356,9 @@ def display_stock_report(report: StockReport) -> None:
     console.print()
     
     display_research_insights(report)
+    console.print()
+
+    display_news(report)
     console.print()
     
     display_educational_notes(report)

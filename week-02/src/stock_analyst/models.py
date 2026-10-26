@@ -96,6 +96,26 @@ class TechnicalAnalysis(BaseModel):
         default=None,
         description="50-day simple moving average (if sufficient data)"
     )
+    rsi: float | None = Field(
+        default=None,
+        description="14-day Relative Strength Index (0-100)"
+    )
+    macd: float | None = Field(
+        default=None,
+        description="MACD line value (12-day EMA minus 26-day EMA)"
+    )
+    macd_signal: float | None = Field(
+        default=None,
+        description="MACD signal line (9-day EMA of the MACD line)"
+    )
+    bollinger_upper: float | None = Field(
+        default=None,
+        description="Upper Bollinger Band (20-day MA plus 2 standard deviations)"
+    )
+    bollinger_lower: float | None = Field(
+        default=None,
+        description="Lower Bollinger Band (20-day MA minus 2 standard deviations)"
+    )
     volatility: Literal["low", "medium", "high"] = Field(
         description="Assessment of price volatility"
     )
@@ -103,6 +123,28 @@ class TechnicalAnalysis(BaseModel):
         description="Brief summary of technical findings"
     )
 
+class NewsSummary(BaseModel):
+    """
+    Represents a summary of recent news about a stock.
+
+    This is the structured output from the News Agent.
+
+    Attributes:
+        sentiment: Overall tone of the recent news
+        summary: Short summary of what the news is about
+        headlines: The headlines the summary is based on
+    """
+
+    sentiment: Literal["positive", "negative", "mixed", "neutral"] = Field(
+        description="Overall sentiment of the recent news"
+    )
+    summary: str = Field(
+        description="2-3 sentence summary of the main news themes"
+    )
+    headlines: list[str] = Field(
+        default_factory=list,
+        description="Recent headlines the summary is based on"
+    )
 
 class StockReport(BaseModel):
     """
@@ -137,6 +179,10 @@ class StockReport(BaseModel):
     educational_notes: list[str] = Field(
         default_factory=list,
         description="Key learning points for students"
+    )
+    news: NewsSummary | None = Field(
+        default=None,
+        description="Summary of recent news (None if unavailable)"
     )
 
 

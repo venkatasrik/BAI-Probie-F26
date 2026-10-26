@@ -26,6 +26,16 @@ from src.stock_analyst.constants import ANALYSIS_AGENT_PROMPT
 from src.stock_analyst.llm import llm
 from src.utils.debug import debug_log
 
+from src.stock_analyst.tools.stock_tools import (
+    calculate_moving_average,
+    find_support_resistance,
+    calculate_price_volatility,
+    get_price_change_percent,
+    calculate_rsi,
+    calculate_ema_series,
+    calculate_macd,
+    calculate_bollinger_bands,
+)
 # Create the Analysis Agent with structured output
 # - result_type: This tells the agent to return a TechnicalAnalysis object
 # - The agent will use its tools to calculate indicators
@@ -140,6 +150,64 @@ def get_overall_price_change(ctx: RunContext[StockData]) -> float:
     debug_log('[agent: "analysis_agent"] [tool-call: "get_overall_price_change"]')
     return get_price_change_percent(stock_data.price_history)
 
+@analysis_agent.tool
+def calculate_rsi_14(ctx: RunContext[StockData]) -> float | None:
+    """
+    Calculate the 14-day Relative Strength Index (RSI).
+
+    RSI is a momentum indicator on a 0-100 scale. Above 70 is often
+    considered overbought (price may be stretched upward); below 30 is
+    often considered oversold.
+
+    Args:
+        ctx: Run context containing StockData
+
+    Returns:
+        RSI value between 0 and 100, or None if insufficient data
+    """
+    stock_data = ctx.deps
+    debug_log('[agent: "analysis_agent"] [tool-call: "calculate_rsi_14"]')
+    return calculate_rsi(stock_data.price_history, 14)
+
+@analysis_agent.tool
+def get_macd(ctx: RunContext[StockData]) -> dict[str, float] | None:
+    """
+    Calculate MACD (Moving Average Convergence Divergence).
+
+    MACD shows momentum. When the MACD line is above its signal line
+    (positive histogram), momentum is bullish; below it (negative
+    histogram), momentum is bearish.
+
+    Args:
+        ctx: Run context containing StockData
+
+    Returns:
+        Dict with 'macd', 'signal', and 'histogram', or None if insufficient data
+    """
+    stock_data = ctx.deps
+    debug_log('[agent: "analysis_agent"] [tool-call: "get_macd"]')
+    return calculate_macd(stock_data.price_history)
+
+
+@analysis_agent.tool
+def get_bollinger_bands(ctx: RunContext[StockData]) -> dict[str, float | str] | None:
+    """
+    Calculate Bollinger Bands (20-day, 2 standard deviations).
+
+    Price above the upper band can signal an overstretched rally; below
+    the lower band can signal an overstretched drop. Wide bands mean
+    high volatility.
+
+    Args:
+        ctx: Run context containing StockData
+
+    Returns:
+        Dict with 'upper', 'middle', 'lower', and 'position', or None
+        if insufficient data
+    """
+    stock_data = ctx.deps
+    debug_log('[agent: "analysis_agent"] [tool-call: "get_bollinger_bands"]')
+    return calculate_bollinger_bands(stock_data.price_history)
 
 @analysis_agent.tool
 def get_current_vs_ma_position(ctx: RunContext[StockData]) -> dict[str, str]:
@@ -210,7 +278,7 @@ async def analyze_stock(stock_data: StockData) -> TechnicalAnalysis:
     # Then it will structure the findings into a TechnicalAnalysis object
     result = await analysis_agent.run(
         f"Perform technical analysis on {stock_data.symbol}. "
-        f"Use the available tools to calculate moving averages, support/resistance, "
+        f"Use the available tools to calculate moving averages, RSI, MACD, Bollinger Bands, support/resistance, "
         f"volatility, and price trends. Then provide a structured analysis with "
         f"trend direction, trend strength, key levels, and a summary.",
         deps=stock_data,
@@ -221,4 +289,6 @@ async def analyze_stock(stock_data: StockData) -> TechnicalAnalysis:
 
     print("✅ Analysis Agent completed successfully")
     return analysis
+
+
 
